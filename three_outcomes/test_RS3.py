@@ -1,4 +1,4 @@
-from recursive_sudoku import *
+from RS3 import *
 import unittest
 import sys
 

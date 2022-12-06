@@ -1,5 +1,5 @@
 
-MAIN_FILE=test_sudoku.py
+MAIN_FILE=test_RS3.py
 PY=python3
 
 default:
