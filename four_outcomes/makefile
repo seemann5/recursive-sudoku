@@ -10,3 +10,7 @@ test:
 
 rules:
 	$(PY) $(MAIN_FILE) $@
+
+entropy:
+	$(PY) $(MAIN_FILE) $@
+	
