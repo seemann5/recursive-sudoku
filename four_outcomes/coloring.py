@@ -19,7 +19,7 @@ def cB(arg):
 def cY(arg):
     return Colors.WARNING + str(arg) + Colors.ENDC
 
-def color_outcome(outcome: int):
+def color_outcome(outcome: int) -> str:
     if outcome == 1:
         return cR(1)
     elif outcome == 2:
@@ -29,4 +29,5 @@ def color_outcome(outcome: int):
     elif outcome == 4:
         return cY(4)
     else:
+        print(f"Error: outcome = {outcome} out of range")
         raise ValueError

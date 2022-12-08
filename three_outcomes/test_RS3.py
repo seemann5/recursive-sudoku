@@ -87,11 +87,35 @@ def case4_solution():
     sudoku_solver.set_initial_outcomes_and_complete(outcomes, verb=True)
 
 def case4_solution_alt():
-    update_order = [(0,1),(1,2)]
-    sudoku_solver = SudokuSolver(4)
-    sudoku_solver.set_filling_steps_starting_with(update_order)
-    outcomes = [1,2]
-    sudoku_solver.set_initial_outcomes_and_complete(outcomes, verb=True)
+    # update_order = [(0,1),(1,2)]
+    # sudoku_solver = SudokuSolver(4)
+    # sudoku_solver.set_filling_steps_starting_with(update_order)
+    # outcomes = [1,2]
+    # sudoku_solver.set_initial_outcomes_and_complete(outcomes, verb=True)
+
+    solver = SudokuSolver(9)
+    update_order = [(0,1),(1,2),(3,4),(4,5),(6,7),(7,8)]
+    solver.set_filling_steps_starting_with(update_order,satisfying_depth=6)
+
+    outcomes = [1,1,2,2,3,3]
+
+    ok, grid = \
+        solver.set_initial_outcomes_and_complete(outcomes,
+            show_initial_grid=True)
+    
+    assert ok
+    print(grid.dense_str())
+
+    swaps = [
+        (4,6),
+        (5,8)
+    ]
+
+    for s1, s2 in swaps:
+        grid.swap_sources(s1,s2)
+
+    print(grid.dense_str())
+    
 
 def biggest():
     length = 9
