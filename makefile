@@ -1,8 +1,9 @@
 
-MAIN_FILE=test_RS4.py
+src=src/
+MAIN_FILE=$(src)test_RS4.py
 PY=python3
 
-default:
+infeasible_grid:
 	$(PY) $(MAIN_FILE) $@
 
 test:
@@ -11,6 +12,6 @@ test:
 rules:
 	$(PY) $(MAIN_FILE) $@
 
-entropy:
+example_filling:
 	$(PY) $(MAIN_FILE) $@
 	

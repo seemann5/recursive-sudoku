@@ -12,7 +12,6 @@ from coloring import *
 def wprint(arg):
     input(arg)
 
-FLOAT = np.single
 INT = np.uint8
 
 # --------------------------------------------
@@ -21,7 +20,7 @@ INT = np.uint8
 
 NOUT=4
 COMPLETELY_UNKNOWN=14
-    
+
 class SudokuProblem:
     """Stores basic Alice&Cycle info"""
 
@@ -55,7 +54,6 @@ class SudokuProblem:
         
         self.create_x_stuff()
 
-        self.xs_to_party_dH = dict()
         self.rb = [
             [
                 [None for _ in self.all_xs] for _ in self.all_xs
@@ -114,6 +112,7 @@ class SudokuProblem:
                 for cycle in cycles
             ]
 
+        # k,l to other k's
         for l in range(self.n_cycles):
             ks = self.l_to_ks[l]
             for i in range(3):
@@ -142,13 +141,23 @@ class SudokuProblem:
             self.x_to_len[x] = len(psb)
 
             # Long string
-            x_str = "["
-            for i in range(NOUT):
-                if cs[3-i] == 1:
-                    x_str += color_outcome(i+1)
-                else:
-                    x_str += " "
-            x_str += "]"
+            x_str = ""
+            if sum(cs) == 1:
+                for i in range(NOUT):
+                    if cs[3-i] == 1:
+                        x_str = f"  {color_outcome(i+1)} "
+            elif sum(cs) == 2:
+                x_str = "("
+                for i in range(NOUT):
+                    if cs[3-i] == 1:
+                        x_str += color_outcome(i+1)
+                x_str += ")"
+            elif sum(cs) == 3:
+                for i in range(NOUT):
+                    if cs[3-i] == 0:
+                        x_str = f" !{color_outcome(i+1)} "
+            else:
+                x_str = "  . "
             self.x_to_long_str[x] = x_str
 
             # Short string
@@ -205,35 +214,6 @@ class SudokuProblem:
 
         return was_inconsistent, new_xs
 
-    def H_cycle(self, xs: Tuple[INT,INT,INT]) -> FLOAT:
-        return sum((FLOAT(np.log2(self.x_to_len[x])) for x in xs))
-
-    def get_party_dH_cycle(self, xs: Tuple[INT,INT,INT]) -> FLOAT:
-        """Return the average entropy change resulting from fixing
-        the *first* outcome, i.e., that of xs[0]."""
-        
-        party_dH = FLOAT(0.)
-
-        x1, x2, x3 = xs
-
-        for o1 in self.x_to_psb[x1]:
-            new_xs = (self.psb_to_x[(o1,)], x2, x3)
-            inconsistent, new_xs = self.simplify_xs(new_xs)
-            assert not inconsistent #otherwise non sensible
-
-            count = 0
-            for o2,o3 in itools.product(self.x_to_psb[x2],self.x_to_psb[x3]):
-                if self.is_valid_event(o1, o2, o3):
-                    count += 1
-            
-            party_dH += FLOAT(np.log2(FLOAT(count)))
-            for other_p in (1,2):
-                party_dH -= FLOAT(np.log2(FLOAT(self.x_to_len[xs[other_p]])))
-            
-        party_dH /= FLOAT(self.x_to_len[x1])
-
-        return party_dH
-
     def create_rule_book(self):
         
         for xs in itools.product(* [self.all_xs] * 3):
@@ -262,24 +242,13 @@ class SudokuProblem:
                     full_after_update = False
                     break
             
-            # Compute entropy changes:
-            total_dH = FLOAT(0.)
-            if non_trivial_update:
-                total_dH = self.H_cycle(new_xs) - self.H_cycle(xs)
-            
             # Append
             self.rb[xs[0]][xs[1]][xs[2]] = Rule(True,
                                     non_trivial_update,
                                     full_after_update,
                                     new_xs,
-                                    non_trivial_pos,
-                                    total_dH)
+                                    non_trivial_pos)
 
-            # Using this opportunity to update the xs_to_party_dH, since
-            # we are effectively iterating over all consistent rules.
-            if self.x_to_len[new_xs[0]] > 1:
-                self.xs_to_party_dH[new_xs] = self.get_party_dH_cycle(new_xs)
-        
     def __str__(self) -> str:
         return cG("\n----- Inflation: ") \
                 + f"{self.order} sources, " \
@@ -287,12 +256,14 @@ class SudokuProblem:
                 + f"{self.n_cycles} triangle-isomorphic subgraphs " \
                 + cG("-----")
 
-    def wprint_rule(self, xs: Tuple[INT,INT,INT]):
+    def wprint_rule(self, xs: Tuple[INT,INT,INT],wait=True):
         x1,x2,x3 = xs
         if not (x1 <= x2 and x2 <= x3):
             return
 
-        rule = self.rb[xs]
+        #Test 
+
+        rule = self.rb[x1][x2][x3]
 
         ret = "\n Pattern "
         offset = " " * len(" Pattern ")
@@ -312,37 +283,16 @@ class SudokuProblem:
                     ret += "and "
                 ret += "is full"
                 if rule.non_trivial_update:
-                    ret += ","
+                    ret += " after update"
             else:
                 if not rule.non_trivial_update:
                     ret += "cannot be simplified yet"
 
-            ret += "\n" + offset
-            ret += " " * (7 * 3) 
-            ret += f"total_dH = {np.round(rule.total_dH,3)}"
-
-        wprint(ret)
-
-    def print_rule_book(self):
-        print("------ Now printing the whole rule book. Press Ctrl+C to",
-            "exit the program, and ENTER to continue. -------")
-        
-        for xs in itools.product(*[self.all_xs for i in range(3)]):
-            self.wprint_rule(xs)
-
-    def print_party_dH(self):
-        print("------ Now printing all party_dH. Press Ctrl+C to",
-            "exit the program, and ENTER to continue. -------")
-
-        for key, val in self.xs_to_party_dH.items():
-            ret = "\n Pattern "
-            for i in range(3):
-                ret += self.x_to_long_str[key[i]] + " "
-            ret += f"-> entropy change of {round(float(val),3)} on avg over"
-            ret += " 1st player outcomes, neglecting correl. prior to fixing,"
-            ret += " counting correl. after fixing)"
+        if wait:
             wprint(ret)
-            
+        else:
+            print(ret)
+
 # -----------------------------------------
 # -------------- Rule Class ---------------
 # -----------------------------------------
@@ -354,8 +304,7 @@ class Rule:
                 non_trivial_update: bool = None,
                 full_after_update: bool = None,
                 new_xs: Tuple[INT,INT,INT] = None,
-                non_trivial_pos: Tuple[bool,bool,bool] = None,
-                total_dH: FLOAT = None
+                non_trivial_pos: Tuple[bool,bool,bool] = None
                 ):
         self.consistent = consistent
         # The following two are independent but assume that consistent==True
@@ -366,55 +315,6 @@ class Rule:
         # A tuple of the form (True, False, True) if first & third values
         # need to be updated
         self.non_trivial_pos = non_trivial_pos
-        # The change of entropy of the cycle after update.
-        self.total_dH = total_dH
-
-# -----------------------------------------
-# -------------- Strat Class --------------
-# -----------------------------------------
-
-class Strat:
-
-    def __init__(self, n):
-        self.n = n
-        self.data = [[0 for j in range(n)] for i in range(n)]
-
-    def __setitem__(self,ij,outcome):
-        i,j = ij
-        self.data[i][j] = outcome
-
-    def __str__(self) -> str:
-        ret = ""
-        for i in range(self.n):
-            ret += "  "
-            for j in range(self.n):
-                ret += color_outcome(self.data[i][j]) + " "
-            ret += "\n"
-        return ret
-
-    def get_p(self, a,b,c) -> float:
-        count = 0
-        for alpha,beta,gamma in itools.product(*[range(self.n)] * 3):
-
-            if self.data[alpha][beta] == a \
-            and self.data[beta][gamma] == b \
-            and self.data[gamma][alpha] == c:
-                count += 1
-
-        if count == 0:
-            return 0.
-        
-        return round(float(count)/float(self.n ** 3),3)
-
-    def to_p_str(self,a,b,c) -> Tuple[bool,str]:
-        p = self.get_p(a,b,c)
-        ret = "p("
-        ret += color_outcome(a) + "," + color_outcome(b) + ","
-        ret += color_outcome(c) + ") = " + f"{str(p): <6}"
-        if p == 0.:
-            return True, ret
-        else:
-            return False, ret
 
 # -----------------------------------------
 # ------------ GridState Class ------------
@@ -422,24 +322,20 @@ class Strat:
 
 class GridState:
     """Stores a numbered filling of a grid"""
-    INF = FLOAT(1e9)
 
     def __init__(self, 
             sp: SudokuProblem, 
-            use_entropy: bool,
-            detailed_verb: bool):
+            detailed_verb: bool,
+            depth_offset: int):
         self.sp = sp
-        self.use_entropy = use_entropy
         self.detailed_verb = detailed_verb
+        self.depth_offset = depth_offset
 
         # A k-indexed list of values to be understood as "x"'s 
         # (see SudokuProblem) - essentially knowledge state about an outcome
         self.xs = np.full((sp.n_alices), COMPLETELY_UNKNOWN, dtype=np.uint8)
-        self.total_H = sp.n_alices*FLOAT(2.) # this assumes four outcomes
         # This one will be computed based on entropy heuristics
         self.k_to_update = None
-        # Set a value larger than anything we'll see here as a starting point.
-        self.optimal_score = GridState.INF
 
         self.perturbed_ks = set()
 
@@ -456,16 +352,18 @@ class GridState:
         # in the internal set_outcome because this one will only ever
         # be called on a "fresh" GridState.
         self.k_to_update = None
-        self.optimal_score = GridState.INF
 
         assert self.set_outcome(k, outcome-1)
 
     def set_outcome(self, k, outcome) -> bool:
         """Returns true if consistent. Assume CS-indexed outcome"""
-        # Remove old local entropy
-        self.total_H -= FLOAT(np.log2(self.sp.x_to_len[self.xs[k]]))
 
         self.xs[k] = self.sp.psb_to_x[(outcome,)]
+
+        if self.detailed_verb:
+            print(f"setting {self.sp.k_to_str[k]}",
+                f"= {color_outcome(outcome+1)}")
+            wprint(self.to_long_str())
 
         self.perturbed_ks.add(k)
 
@@ -474,56 +372,18 @@ class GridState:
     def is_full(self) -> bool:
         return self.ltrust.all()
 
-    def set_k_to_update(self) -> bool:
+    def set_k_to_update(self):
         best_breadth = 5
 
-        for x in self.xs:
+        for k, x in enumerate(self.xs):
             b_x = self.sp.x_to_len[x]
             if b_x == 1:
                 continue
             elif b_x < best_breadth:
                 best_breadth = b_x
+                self.k_to_update = k
                 if best_breadth == 2:
                     break
-
-        if (best_breadth == 2 and self.use_entropy) or not self.use_entropy:
-            # Breadth-optimal k
-            self.k_to_update = next(
-                    (k
-                    for k in range(self.sp.n_alices)
-                    if self.sp.x_to_len[self.xs[k]] == best_breadth)
-                )
-        else:
-            # Entropic optimal k
-            for k in range(self.sp.n_alices):
-                b_k = self.sp.x_to_len[self.xs[k]]
-                if b_k != best_breadth:
-                    # If k full or too entropic, essentially. 
-                    # May want to store this info as a
-                    # boolean array? #TODO think about it
-                    continue
-                
-                total_dH = FLOAT(0.)
-
-                for l in self.sp.k_to_ls[k]:
-                    # For all cycle, add the expected entropy change.
-                    # First need the xs in the right order:
-                    triple_ks = self.sp.l_to_ks[l]
-                    index_k_in_l = triple_ks.index(k)
-                    ordered_ks = tuple(
-                        triple_ks[(index_k_in_l+i)%3] for i in range(3)
-                        )
-                    ordered_xs = tuple(
-                        self.xs[k_bis] for k_bis in ordered_ks
-                    )
-                    total_dH += self.sp.xs_to_party_dH[ordered_xs]
-                
-                #score = FLOAT(np.log2(b_k)) * (self.total_H + total_dH)
-                score = total_dH
-
-                if score < self.optimal_score:
-                    self.optimal_score = score
-                    self.k_to_update = k
 
     def simplify_from_perturbed_ks(self) -> bool:
         while len(self.perturbed_ks) > 0:
@@ -537,13 +397,11 @@ class GridState:
         
         return True
 
-    def get_rule(self, l: int) -> Tuple[Rule,Tuple[int,int,int]]:
-        """Returns the rule associated to the cycle l, together with the
-        three concerned k-indices (Alices)"""
-        ks = self.sp.l_to_ks[l]
-        # xs = tuple(self.xs[k] for k in ks)
-        # rule = self.sp.rb[(self.xs[ks[0]],self.xs[ks[1]],self.xs[ks[2]])]
-        return self.sp.rb[self.xs[ks[0]]][self.xs[ks[1]]][self.xs[ks[2]]], ks
+    def print_update(self, k, l):
+        if self.detailed_verb:
+            print(f"Updating {self.sp.k_to_str[k]}",
+                f"based on cycle {self.sp.l_to_str[l]}:")
+            wprint(self.to_long_str())
 
     def simplify_from_k(self, base_k: int) -> bool:
         """Checks the cycles connected to k and
@@ -567,13 +425,11 @@ class GridState:
 
             other_k1, other_k2 = l_to_other_ks[l]
             rule = rules_for_x[self.xs[other_k1]][self.xs[other_k2]]
-            #rule, ks = self.get_rule(l)
 
             if not rule.consistent:
                 if self.detailed_verb:
-                    print("\n\n\n INCONSISTENT: \n")
-                    print(self.to_short_str())
-                    #print(f"H = {self.total_H}",end="",flush=True)
+                    print(cR("INCONSISTENT"),"- see cycle",
+                        f"{self.sp.l_to_str[l]} in the above!")
                 return False
 
             if rule.full_after_update:
@@ -590,73 +446,41 @@ class GridState:
             if rule.non_trivial_pos[0]:
                 self.xs[base_k] = rule.new_xs[0]
                 self.perturbed_ks.add(base_k)
+                self.print_update(base_k, l)
                 break
 
             if rule.non_trivial_pos[1]:
                 self.xs[other_k1] = rule.new_xs[1]
                 self.perturbed_ks.add(other_k1)
+                self.print_update(other_k1, l)
             
             if rule.non_trivial_pos[2]:
                 self.xs[other_k2] = rule.new_xs[2]
                 self.perturbed_ks.add(other_k2)
+                self.print_update(other_k2, l)
 
-            # for  k,       new_x,       is_non_trivial in zip(
-            #     ks, rule.new_xs, rule.non_trivial_pos):
-
-            #     if is_non_trivial:
-            #         if self.detailed_verb:
-            #             s = "Can update " + self.sp.k_to_str[k] + " to "
-            #             s += self.sp.x_to_long_str[new_x]
-            #             print(s)
-            #             print(str(self))
-
-            #         # Update the cycle
-            #         self.xs[k] = new_x
-            #         # Append:
-            #         self.perturbed_ks.add(k)
-
-            #if rule.full_after_update:
-            #    self.ltrust[l] = True
-
-            # Total entropy
-            # self.total_H += rule.total_dH
-            
         return True
 
     def copy_from(self, other):
         np.copyto(self.xs, other.xs)
-        self.total_H = other.total_H
-        self.optimal_score = GridState.INF
         self.k_to_update = None
         np.copyto(self.ltrust, other.ltrust)
-
-    def get_metadata(self) -> str:
-        ret = ""
-        if self.k_to_update is not None:
-            ret = f"\n\n    Total entropy: {round(float(self.total_H),3)}"
-            ret += f"\n    Should update {self.sp.k_to_str[self.k_to_update]}"
-            ret += f" next, score = {round(float(self.optimal_score),3)}"
-        ret += "\n"
-        return ret
 
     def to_long_str(self) -> str:
         ret = "\n"
         for i in range(self.sp.order):
             if i > 0:
-                ret += "\n\n\n"
+                ret += "\n\n"
             ret += "  "
+            ret += " " * (4*self.depth_offset)
             for j in range(self.sp.order):
                 if i == j:
-                    ret += f"{i % 10: >6}"
+                    ret += f"  {i % 10} "
                 else:
                     x = self.xs[self.sp.ij_to_k[(i,j)]]
-                    if x == COMPLETELY_UNKNOWN:
-                        s = " "
-                        ret += f"{s: >6}"
-                    else:
-                        ret += self.sp.x_to_long_str[x]
-                ret += " "
-        ret += self.get_metadata()
+                    ret += self.sp.x_to_long_str[x]
+                # ret += " "
+        ret += "\n"
         return ret
 
     def to_short_str(self) -> str:
@@ -670,84 +494,8 @@ class GridState:
                     x = self.xs[self.sp.ij_to_k[(i,j)]]
                     ret += self.sp.x_to_short_str[x]
                 ret += " "
-        ret += self.get_metadata()
+        ret += "\n"
         return ret
-
-    def swap_sources(self, s1, s2):
-        for i in range(self.sp.order):
-            if i != s1 and i != s2:
-                self.xs[self.sp.ij_to_k[(i,s1)]], \
-                self.xs[self.sp.ij_to_k[(i,s2)]] = \
-                self.xs[self.sp.ij_to_k[(i,s2)]], \
-                self.xs[self.sp.ij_to_k[(i,s1)]]
-
-                self.xs[self.sp.ij_to_k[(s1,i)]], \
-                self.xs[self.sp.ij_to_k[(s2,i)]] = \
-                self.xs[self.sp.ij_to_k[(s2,i)]], \
-                self.xs[self.sp.ij_to_k[(s1,i)]]
-        
-        self.xs[self.sp.ij_to_k[(s1,s2)]], \
-        self.xs[self.sp.ij_to_k[(s2,s1)]] = \
-        self.xs[self.sp.ij_to_k[(s2,s1)]], \
-        self.xs[self.sp.ij_to_k[(s1,s2)]]
-
-    def swap_source_list(self, swaps):
-        for s1,s2 in swaps:
-            self.swap_sources(s1,s2)
-
-        print("After swaps, have:")
-        print(self.to_short_str())
-
-    def extend_to_strat(self,diag_info):
-        strat = Strat(self.sp.order)
-
-        diag = [0 for _ in range(self.sp.order)]
-        for s1,s2,outcome in diag_info:
-            for i in range(s1,s2+1):
-                diag[i] = outcome
-
-        for i in range(self.sp.order):
-            for j in range(self.sp.order):
-                if i == j:
-                    strat[(i,i)] = diag[i]
-                else:
-                    strat[(i,j)] = 1 + self.sp.x_to_psb[
-                            self.xs[
-                                self.sp.ij_to_k[(i,j)]
-                            ]
-                        ][0]
-
-        print("Strategy:\n")
-        print(strat)
-
-        print(f"Outcome distribution:")
-
-        print("\n  --- 111 --- ")
-        for a in range(1,NOUT+1):
-            is_zero, ret = strat.to_p_str(a,a,a)
-            if is_zero:
-                ret += cR("-> shouldn't be zero")
-            print(ret)
-            
-        print("\n --- 123 --- ")
-        for a,b,c in itools.product(*[range(1,NOUT+1)] * 3):
-            if not (a!=b and b!=c and c!=a):
-                continue        
-            is_zero, ret = strat.to_p_str(a,b,c)
-            if is_zero:
-                ret += cR("-> shouldn't be zero")
-            print(ret)
-        
-        first_error = True
-        for a,b,c in itools.product(*[range(1,NOUT+1)] * 3):
-            if (a==b and b==c) or (a!=b and b!=c and c!=a):
-                continue
-            is_zero, ret = strat.to_p_str(a,b,c)
-            if not is_zero:
-                if first_error:
-                    print("\n --- 112 ---")
-                    first_error = False
-                print(ret + cR("-> should be zero"))
 
 # ---------------------------------------
 # ------------ SudokuSolver -------------
@@ -758,33 +506,29 @@ class SudokuSolver:
 
     def __init__(self, 
             order: int, 
-            branching_attitude: str = "BreadthOpt",
             detailed_verb: bool = False,
             progress_verb: bool = False):
         
         self.sp = SudokuProblem(order)
-        print(self.sp)
+        print(self.sp,"\n")
 
         self.time = time.time()
-
-        self.use_entropy = False
-        if branching_attitude == "Entropy":
-            self.use_entropy = True
-            print(cY(" *** USING ENTROPY! *** "))
-        else:
-            print(cY(" *** USING BREADTH OPTIMALITY! ***"))
+        self.wait_time = 0.15
+        self.progress_time = time.time() + self.wait_time
 
         self.detailed_verb = detailed_verb
         self.progress_verb = progress_verb
 
         self.grid_states = [
-            GridState(self.sp,self.use_entropy,self.detailed_verb) 
+            GridState(self.sp,self.detailed_verb,d) 
             for d in range(SudokuSolver.MAX_DEPTH)
             ]
 
         self.solution_grid = None
 
     def user_set_outcome(self, i, j, outcome):
+        if self.detailed_verb:
+            print(f"Initial filling: ",end="")
         self.grid_states[0].user_set_outcome(i,j,outcome)
 
     def set_diag_event(self, d, a,b,c):
@@ -796,36 +540,47 @@ class SudokuSolver:
             self.user_set_outcome(3*d+1, 3*d+2, b)
             self.user_set_outcome(3*d+2,   3*d, c)
 
-    def complete_grid(self, verb=False) -> bool:
+    def get_time(self) -> str:
+        return f"{round(time.time() - self.time,3)}s"
 
-        print("\nThe initial grid is setup to be")
-        print(self.grid_states[0].to_short_str())
+    def complete_grid(self) -> bool:
+        print("The initial grid is setup to be")
+        if self.detailed_verb:
+            print(self.grid_states[0].to_long_str())
+        else:
+            print(self.grid_states[0].to_short_str())
 
-        print("Completing the grid...")
+        wprint("Press ENTER to complete...")
+        print("")
 
-        return self.recursive_complete_grid(0,verb)
+        status = self.recursive_complete_grid(0)
 
-    def recursive_complete_grid(self,current_depth: int,verb) -> bool:
-        # if time.time() - self.time >= 10.0:
-        #     return True # TIMEOUT
+        if not status:
+            print(f"\nDid not find a solution grid. Took {self.get_time()}",
+                "to complete search.\n")
+
+        return status
+
+    def recursive_complete_grid(self,current_depth: int) -> bool:
 
         cur_grid = self.grid_states[current_depth]
 
-        if self.progress_verb and current_depth % 3 == 0:
-            s = "-" * (current_depth)
+        if self.progress_verb and time.time() > self.progress_time:
+            s = "Depth "
+            s += "-" * (current_depth)
             s += str(current_depth)
             s = f"{s: <150}"
             s += "\r"
             print(s,end="",flush=True)
-
-        if self.detailed_verb:
-            wprint("Entering recursive: " + cur_grid.to_short_str())
+            self.progress_time = time.time() + self.wait_time
 
         # If we trust everything...
         if cur_grid.ltrust.all():
-            print("\n:D")
             self.solution_grid = cur_grid
-            print("\nFound a solution grid:")
+            s = "\nFound a solution grid"
+            if not self.detailed_verb:
+                s += f"after {self.get_time()}:"
+            print(s)
             wprint(self.solution_grid.to_short_str())
             return True
 
@@ -836,29 +591,24 @@ class SudokuSolver:
         for o in self.sp.x_to_psb[cur_grid.xs[k_to_update]]:
             
             if self.progress_verb and current_depth < 3:
-                s = ""
-                s += " " * (current_depth*12)
+                s = " " * (current_depth*12)
                 s += f"{self.sp.k_to_str[k_to_update]} = {color_outcome(o+1)}"
+                s += " " * (current_depth*24)
                 print(s)
+            elif self.detailed_verb:
+                print(cG(f"At depth {current_depth}:"),"try ",end="")
 
             child_grid.copy_from(cur_grid)
-
-            if current_depth > 5:
-                child_grid.use_entropy = False
-            else:
-                child_grid.use_entropy = False
 
             ok_so_far = child_grid.set_outcome(k_to_update, o)
 
             if ok_so_far:
                 completable = \
-                    self.recursive_complete_grid(current_depth+1,verb)
+                    self.recursive_complete_grid(current_depth+1)
                 if completable:
                     return True
+                else:
+                    if self.progress_verb and current_depth == 2:
+                        print("\033[1A\033[35C"+cR("inconsistent"))
         
         return False
-
-            
-
-
-
