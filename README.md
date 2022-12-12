@@ -2,7 +2,7 @@
 
 ## The problem
 
-### An asymmetric implmentation of a symmetric distribution in the classical triangle network
+### An asymmetric implementation of a symmetric distribution in the classical triangle network
 
 For all `N = 3, 4, ...`, 
 let `p_{eq,N} = (1/N) * \sum_{a=1}^N [aaa]` (uniform support over all outcomes being equal) 
