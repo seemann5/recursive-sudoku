@@ -22,29 +22,34 @@ NOUT=4
 COMPLETELY_UNKNOWN=14
 
 class SudokuProblem:
-    """Stores basic Alice&Cycle info"""
+    """Stores useful information about the inflation graph,
+    the possible events and associated update rules"""
 
     def __init__(self, order):
-        # The size of the grid
+        # The size of the grid/inflation (i.e., number of sources)
         self.order = order
-        # The alice & cycles part
+        # The Alices & Cycles (copies of the original triangle) part
         self.n_alices = order*(order-1)
         self.n_cycles = int(2 * order*(order-1)*(order-2) / (3*2))
+        # k denotes the hash of an Alice
         self.k_to_str = ["" for k in range(self.n_alices)]
+        # l denotes the hash of a cycle
         self.l_to_str = ["" for l in range(self.n_cycles)]
         self.ij_to_k = dict()
-        # The Alices (ks) that the cycle (l) touches
+        # The Alices (k's) that the cycle (l) contains
         self.l_to_ks = [[] for l in range(self.n_cycles)]
-        # The cycles that Alice partipates to
+        # The cycles (l's) that Alice (k) partipates to
         self.k_to_ls = [[] for k in range(self.n_alices)]
-        # The two other k's in l part from k
+        # The two other k's in l apart from k
         self.kl_to_other_ks = [
             [() for l in range(self.n_cycles)] 
             for k in range(self.n_alices)]
 
         self.create_kl_links()
 
-        # The 0 pattern is excluded
+        # x denotes a hash of a psb (possibility) such as (0,1,3) for
+        # outcomes 0, 1 or 3
+        # The empty psb is excluded.
         self.all_xs = [INT(x) for x in range(0,2**NOUT-1)]
         self.x_to_long_str = ["" for x in self.all_xs]
         self.x_to_short_str = [""for x in self.all_xs]
@@ -54,6 +59,7 @@ class SudokuProblem:
         
         self.create_x_stuff()
 
+        # The rule book, which states how to update a triple of x's
         self.rb = [
             [
                 [None for _ in self.all_xs] for _ in self.all_xs
@@ -173,9 +179,12 @@ class SudokuProblem:
     # RULE BOOK STUFF ---------------------------
 
     def is_valid_event(self, o1: int, o2: int, o3: int) -> bool:
+        """Gives True for an outcome triplet that is in the target support"""
         return (o1==o2 and o2==o3) or (o1!=o2 and o2!=o3 and o3!=o1)
 
     def simplify_xs(self, xs: Tuple[INT,INT,INT]) -> Tuple[INT,INT,INT]:
+        """Returns (the hash of) the updated x's, stating that e.g.
+        1,1,. goes necessarily to 1,1,1."""
             
         # Now check for consistency & simplifications at the same time.
         triple_psb = [self.x_to_psb[x] for x in xs]
@@ -215,6 +224,8 @@ class SudokuProblem:
         return was_inconsistent, new_xs
 
     def create_rule_book(self):
+        """Iterates over all patterns of triplets of psb's, and
+        generate the corresponding update rules"""
         
         for xs in itools.product(* [self.all_xs] * 3):
 
@@ -298,6 +309,7 @@ class SudokuProblem:
 # -----------------------------------------
 
 class Rule:
+    """An update rule, associated to a triple of x's (psb's)."""
 
     def __init__(self,
                 consistent: bool,
@@ -321,7 +333,7 @@ class Rule:
 # -----------------------------------------
 
 class GridState:
-    """Stores a numbered filling of a grid"""
+    """Stores a possibilistic filling of a grid/inflation"""
 
     def __init__(self, 
             sp: SudokuProblem, 
@@ -334,7 +346,7 @@ class GridState:
         # A k-indexed list of values to be understood as "x"'s 
         # (see SudokuProblem) - essentially knowledge state about an outcome
         self.xs = np.full((sp.n_alices), COMPLETELY_UNKNOWN, dtype=np.uint8)
-        # This one will be computed based on entropy heuristics
+        # This one will be the branch-width optimized k.
         self.k_to_update = None
 
         self.perturbed_ks = set()
@@ -348,7 +360,7 @@ class GridState:
         x = self.xs[k]
         assert (outcome-1) in self.sp.x_to_psb[x]
 
-        # Will need to update these guys anyway. Don't need to put them
+        # Will need to update this guy anyway. Don't need to put the statement
         # in the internal set_outcome because this one will only ever
         # be called on a "fresh" GridState.
         self.k_to_update = None
@@ -370,22 +382,31 @@ class GridState:
         return self.simplify_from_perturbed_ks()
 
     def is_full(self) -> bool:
+        """Returns True is all the outcomes are specified throughout the grid,
+        and without inconsistencies"""
         return self.ltrust.all()
 
     def set_k_to_update(self):
-        best_breadth = 5
+        """Find the Alice (k) that has the minimal number of possible
+        outcomes, given the present state of knowledge"""
+
+        best_width = 5
 
         for k, x in enumerate(self.xs):
             b_x = self.sp.x_to_len[x]
             if b_x == 1:
                 continue
-            elif b_x < best_breadth:
-                best_breadth = b_x
+            elif b_x < best_width:
+                best_width = b_x
                 self.k_to_update = k
-                if best_breadth == 2:
+                if best_width == 2:
                     break
 
     def simplify_from_perturbed_ks(self) -> bool:
+        """Look for the Alices that were modified (`perturbed`), and
+        see whether any of the cycles they are connected to yield some
+        non-trivial udpates"""
+
         while len(self.perturbed_ks) > 0:
             k = self.perturbed_ks.pop()
 
@@ -502,6 +523,10 @@ class GridState:
 # ---------------------------------------
 
 class SudokuSolver:
+    """Takes in an inflation size, an initial filling (partial event),
+    then coordinates the completion of the inflation event into a
+    consistent one"""
+
     MAX_DEPTH=90
 
     def __init__(self, 
@@ -544,6 +569,8 @@ class SudokuSolver:
         return f"{round(time.time() - self.time,3)}s"
 
     def complete_grid(self) -> bool:
+        """Wrapper around the recursive_complete_grid method"""
+
         print("The initial grid is setup to be")
         if self.detailed_verb:
             print(self.grid_states[0].to_long_str())
@@ -562,15 +589,17 @@ class SudokuSolver:
         return status
 
     def recursive_complete_grid(self,current_depth: int) -> bool:
+        """Guess the outcome of an Alice, update grid, and repeat"""
 
         cur_grid = self.grid_states[current_depth]
 
-        if self.progress_verb and time.time() > self.progress_time:
-            s = "Depth "
+        if self.progress_verb and time.time() > self.progress_time \
+                and current_depth >= 3:
+            # Go to end of line
+            s = go_right(2 + 3*12)
             s += "-" * (current_depth)
             s += str(current_depth)
-            s = f"{s: <150}"
-            s += "\r"
+            s = f"{s: <50}\r"
             print(s,end="",flush=True)
             self.progress_time = time.time() + self.wait_time
 
@@ -591,10 +620,9 @@ class SudokuSolver:
         for o in self.sp.x_to_psb[cur_grid.xs[k_to_update]]:
             
             if self.progress_verb and current_depth < 3:
-                s = " " * (current_depth*12)
+                s = go_right(2+current_depth*12)
                 s += f"{self.sp.k_to_str[k_to_update]} = {color_outcome(o+1)}"
-                s += " " * (current_depth*24)
-                print(s)
+                print(s,end="\r",flush=True)
             elif self.detailed_verb:
                 print(cG(f"At depth {current_depth}:"),"try ",end="")
 
@@ -609,6 +637,7 @@ class SudokuSolver:
                     return True
                 else:
                     if self.progress_verb and current_depth == 2:
-                        print("\033[1A\033[35C"+cR("inconsistent"))
-        
+                        print(go_right(2 + 3*12)+cR("inconsistent") + (" "*50),
+                            end="\n")
+
         return False

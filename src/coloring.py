@@ -31,3 +31,17 @@ def color_outcome(outcome: int) -> str:
     else:
         print(f"Error: outcome = {outcome} out of range")
         raise ValueError
+    
+# Motions
+
+def go_up(n: int) -> str:
+    return f"\033[{n}A"
+
+def go_down(n: int) -> str:
+    return f"\033[{n}B"
+
+def go_right(n: int) -> str:
+    return f"\033[{n}C"
+
+def go_left(n: int) -> str:
+    return f"\033[{n}D"

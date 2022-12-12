@@ -61,9 +61,9 @@ def show_rule_book():
     print("\nWelcome to the " + cG("rule book") + "!")
 
     print("\nRecall that we are working in the triangle scenario, and",
-        "we are trying to show that (the support of) a specific")
-    print("distribution is " + cR("incompatible") + " with a certain",
-        "symmetric classical triangle implementation.")
+        "we are trying to show that\n(the support of) a specific",
+        "distribution is " + cR("incompatible") + " with a certain",
+        "symmetric\nclassical triangle implementation.")
     
     def event_to_str(os) -> str:
         ret = ""
@@ -78,7 +78,7 @@ def show_rule_book():
         if i > 0:
             ret += " ; "
         ret += event_to_str((i+1,i+1,i+1))
-    ret += " and "
+    ret += "\nand "
     for i, os in enumerate(((1,2,3), (1,2,4), (4,3,2))):
         if i > 0:
             ret += " ; "
@@ -95,11 +95,10 @@ def show_rule_book():
     wait()
 
     print("\nInternally, this code assigns to each Alice in the inflation",
-        "an outcome possibility (psb), i.e., a subset of the outcomes",
+        "an outcome possibility\n(psb), i.e., a subset of the outcomes",
         f"{color_outcome(1)},{color_outcome(2)}," \
-        + f"{color_outcome(3)},{color_outcome(4)}")
-    print("that the corresponding Alice may output.",
-        "For instance:\n")
+        + f"{color_outcome(3)},{color_outcome(4)}",
+        "that the corresponding Alice may\noutput. For instance:\n")
     for psb in ((0,), (1,2), (1,2,3), (0,1,2,3)):
         ret = " - the psb "
         ret += sp.x_to_long_str[sp.psb_to_x[psb]]
@@ -117,28 +116,28 @@ def show_rule_book():
     wait()
 
     print("\nThe inconsistent events can be lifted to give rise to",
-        "update rules at the level of psb triples. The simplest such rule",
+        "update rules at the level\nof psb triplets. The simplest such rule",
         "is:")
     sp.wprint_rule((0,0,14),False)
 
     print("\nThis rule says that if Alice & Bob output",color_outcome(1),
-        "then we must update Charlie to also be outputting",
-        f"{color_outcome(1)}.")
-    print("(Note that these rules are symmetric under party exchange.)")
+        "then we must update Charlie\nto also be outputting",
+        f"{color_outcome(1)}.",
+        "(Note that these rules are symmetric under party exchange.)")
 
     print("\nAnother type of rule is the following:")
 
     sp.wprint_rule((0,1,COMPLETELY_UNKNOWN),False)
 
     print("\nThis rule says that once we know that Alice and Bob",
-        "output different outcomes, Charlie must output something",
+        "output different outcomes,\nCharlie must output something",
         "different (although we are not yet able to say what exactly).")
 
     wait()
 
     print(f"\n------ {cG('Now printing the whole rule book.')}",
-        "Press Ctrl+C to",
-        "exit the program, and ENTER to move to next rule. -------")
+        "Ctrl+C to",
+        "exit, ENTER to move to next rule. -------")
     
     for xs in itools.product(*[sp.all_xs for i in range(3)]):
         sp.wprint_rule(xs)
@@ -148,22 +147,22 @@ def example_filling():
     solver = SudokuSolver(6,detailed_verb=True,progress_verb=False)
 
     print("We now define the inflation featuring 6 sources,",
-        "and for each i != j, and Alice labeled A(i,j) whose left (right)",
-        "input is drawn from source i (j).")
-    print("This inflation is such that any triplet of sources (i,j,k)"
+        "and for each i != j, and Alice labeled A(i,j)\nwhose left (right)",
+        "input is drawn from source i (j).",
+        "This inflation is such that any triplet\nof sources (i,j,k)",
         "with either i < j < k or i > j > k, corresponding to the Alices",
-        "A(i,j), A(j,k) and A(k,i),")
-    print("is isomorphic to the original triangle scenario. This lets us",
-        "apply the deduction rules for each such triplet.")
+        "A(i,j),\nA(j,k) and A(k,i),",
+        "is isomorphic to the original triangle scenario. This lets us",
+        "apply\nthe deduction rules for each such triplet.")
     
     wait()
     
     print("\nWe label the sources with grey number for indicative purposes.",
-        "For each Alice, we display the current best guess for her",
-        "outcome possibilities.")
-    print("This guess is based on the rule book that is",
+        "For each Alice, we display\nthe current best guess for her",
+        "outcome possibilities.",
+        "This guess is based on the rule book\nthat is",
         "constantly checking out the cycles (i,j,k) (i < j < k or i > j > k)",
-        "of the inflation to apply updates.")
+        "\nof the inflation to apply updates.")
 
     wait()
 
@@ -171,7 +170,8 @@ def example_filling():
     print("  1 - Fill in some initial events that must necessarily arise",
         "based on d-separation,")
     print("  2 - Attempt to complete the initial event to a definite one",
-        "that respects the consistency rule (support compatibility).")
+        "that respects the\n",
+        "     consistency rules (support compatibility).")
 
     wait()
 
