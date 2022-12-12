@@ -85,6 +85,33 @@ Prerequisites: `python3` (may need to edit the `PY` variable of `./makefile`), `
 
 The following examples are available:
 
-1. `make rules` to see how the "Sudoku" works at the level of a single copy of the triangle network,
-2. `make example_filling` to see an explicit example of filling up an inflation,
-3. `make infeasible_grid` to reproduce the infeasibility result.
+### `make rules` 
+
+This example show how the "Sudoku" works at the level of a single copy of the triangle network.
+Introduction to the allowed events:
+<p align="center">
+  <img src="https://github.com/seemann5/recursive-sudoku/blob/main/out/out_rules.png" />
+</p>
+Examples of rules:
+<p align="center">
+  <img src="https://github.com/seemann5/recursive-sudoku/blob/main/out/out_rules_2.png" />
+</p>
+
+### `make example_filling` 
+
+A walk-through of an explicit example of filling up an inflation (in the feasible case).
+Introduction to the inflation at hand:
+<p align="center">
+  <img src="https://github.com/seemann5/recursive-sudoku/blob/main/out/out_example_filling.png" />
+</p>
+A sample of the filling process:
+<p align="center">
+  <img src="https://github.com/seemann5/recursive-sudoku/blob/main/out/out_example_filling_2.png" />
+</p>
+
+### `make infeasible_grid`
+
+To reproduce the infeasibility result:
+<p align="center">
+  <img src="https://github.com/seemann5/recursive-sudoku/blob/main/out/out_infeasible_grid.png" />
+</p>
