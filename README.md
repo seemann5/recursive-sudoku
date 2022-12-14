@@ -67,7 +67,7 @@ This statement has been independently verified
 
 We make use of fanout inflation, and more specifically, its possibilistic
 version, developed originally in the article 
-(A Combinatorial Solution to Causal Compatibility)[https://doi.org/10.1515/jci-2019-0013].
+[A Combinatorial Solution to Causal Compatibility](https://doi.org/10.1515/jci-2019-0013).
 The idea of inflation is to consider the thought experiment where we would
 have access to multiple copies of the original sources and agents, wired in a
 specific way.
@@ -128,10 +128,10 @@ with the immediate filling of the grid (such a square typically exists).
 
 #### Comparison with a SAT-solver based approach
 
-In a (related repository)[https://github.com/eliewolfe/mDAG-analysis] that
+In a [related repository](https://github.com/eliewolfe/mDAG-analysis) that
 has a greater scope than the present one, the same result has been
 independently verified using a SAT solver (see 
-(this file)[https://github.com/eliewolfe/mDAG-analysis/blob/main/supports_with_causal_sym.py]).
+[this file](https://github.com/eliewolfe/mDAG-analysis/blob/main/supports_with_causal_sym.py)).
 Note that the SAT solver performs much better than the present hand-crafted
 solver (it would be surprising otherwise).
 
