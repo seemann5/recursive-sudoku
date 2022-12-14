@@ -61,7 +61,7 @@ classical triangle network that has support on the all of the events of `e1`
 will necessarily have a non-trivial support on some of the events of `e2`.
 
 This statement has been independently verified 
-(here)[https://github.com/eliewolfe/mDAG-analysis/blob/main/supports_with_causal_sym.py].
+[here](https://github.com/eliewolfe/mDAG-analysis/blob/main/supports_with_causal_sym.py).
 
 ## Methods
 
