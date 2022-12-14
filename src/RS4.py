@@ -25,7 +25,9 @@ class SudokuProblem:
     """Stores useful information about the inflation graph,
     the possible events and associated update rules"""
 
-    def __init__(self, order):
+    def __init__(self, 
+            order:int,
+            possible_events: List[Tuple[int,int,int]]):
         # The size of the grid/inflation (i.e., number of sources)
         self.order = order
         # The Alices & Cycles (copies of the original triangle) part
@@ -47,6 +49,7 @@ class SudokuProblem:
 
         self.create_kl_links()
 
+        self.possible_events = possible_events
         # x denotes a hash of a psb (possibility) such as (0,1,3) for
         # outcomes 0, 1 or 3
         # The empty psb is excluded.
@@ -58,16 +61,16 @@ class SudokuProblem:
         self.x_to_psb = [() for x in self.all_xs]
         
         self.create_x_stuff()
-
+        
         # The rule book, which states how to update a triple of x's
         self.rb = [
             [
                 [None for _ in self.all_xs] for _ in self.all_xs
             ]
             for _ in self.all_xs]
-        
+    
         self.create_rule_book()
-        
+
     def create_kl_links(self):
         # Alices
         alices = [(i,j) 
@@ -180,7 +183,7 @@ class SudokuProblem:
 
     def is_valid_event(self, o1: int, o2: int, o3: int) -> bool:
         """Gives True for an outcome triplet that is in the target support"""
-        return (o1==o2 and o2==o3) or (o1!=o2 and o2!=o3 and o3!=o1)
+        return (o1,o2,o3) in self.possible_events
 
     def simplify_xs(self, xs: Tuple[INT,INT,INT]) -> Tuple[INT,INT,INT]:
         """Returns (the hash of) the updated x's, stating that e.g.
@@ -527,14 +530,12 @@ class SudokuSolver:
     then coordinates the completion of the inflation event into a
     consistent one"""
 
-    MAX_DEPTH=90
-
     def __init__(self, 
-            order: int, 
+            sp: SudokuProblem,
             detailed_verb: bool = False,
             progress_verb: bool = False):
         
-        self.sp = SudokuProblem(order)
+        self.sp = sp
         print(self.sp,"\n")
 
         self.time = time.time()
@@ -546,7 +547,7 @@ class SudokuSolver:
 
         self.grid_states = [
             GridState(self.sp,self.detailed_verb,d) 
-            for d in range(SudokuSolver.MAX_DEPTH)
+            for d in range(50)
             ]
 
         self.solution_grid = None
@@ -557,14 +558,14 @@ class SudokuSolver:
         self.grid_states[0].user_set_outcome(i,j,outcome)
 
     def set_diag_event(self, d, a,b,c):
-        if a == b:
-            self.user_set_outcome(  3*d, 3*d+1, a)
-            self.user_set_outcome(3*d+1, 3*d+2, a)
-        else:
-            self.user_set_outcome(  3*d, 3*d+1, a)
-            self.user_set_outcome(3*d+1, 3*d+2, b)
-            self.user_set_outcome(3*d+2,   3*d, c)
+        self.user_set_outcome(  3*d, 3*d+1, a)
+        self.user_set_outcome(3*d+1, 3*d+2, b)
+        self.user_set_outcome(3*d+2,   3*d, c)
 
+    def set_diag_event_list(self, events: List[Tuple[int,int,int]]):
+        for d, (a,b,c) in enumerate(events):
+            self.set_diag_event(d, a,b,c)
+        
     def get_time(self) -> str:
         return f"{round(time.time() - self.time,3)}s"
 
@@ -613,6 +614,13 @@ class SudokuSolver:
             wprint(self.solution_grid.to_short_str())
             return True
 
+        # For depth purposes
+        if current_depth+1 >= len(self.grid_states):
+            for i in range(50):
+                self.grid_states.append(
+                    GridState(self.sp,detailed_verb=self.detailed_verb,
+                    depth_offset=len(self.grid_states)))
+        
         # Assume rubbish
         child_grid = self.grid_states[current_depth+1]
 

@@ -2,11 +2,16 @@
 from RS4 import *
 import unittest
 
+default_possible_events = list(itools.chain(
+    ((a,a,a) for a in range(4)),
+    (perm for perm in itools.permutations(range(4),3))
+))
+
 class TestRS4(unittest.TestCase):
 
     def test_permutation_rules(self):
         
-        sp = SudokuProblem(4)
+        sp = SudokuProblem(4,default_possible_events)
 
         for xs in itools.product(*[sp.all_xs for i in range(3)]):
             x,y,z = xs
@@ -37,7 +42,7 @@ class TestRS4(unittest.TestCase):
 
     def test_assumption_about_rules(self):
         
-        sp = SudokuProblem(4)
+        sp = SudokuProblem(4,default_possible_events)
 
         for xs in itools.product(*[sp.all_xs for i in range(3)]):
             x,y,z = xs
@@ -56,7 +61,7 @@ def wait():
     wprint("\n    [ENTER] to continue...")
 
 def show_rule_book():
-    sp = SudokuProblem(4)
+    sp = SudokuProblem(4, default_possible_events)
 
     print("\nWelcome to the " + cG("rule book") + "!")
 
@@ -144,7 +149,9 @@ def show_rule_book():
     
 def example_filling():
 
-    solver = SudokuSolver(6,detailed_verb=True,progress_verb=False)
+    sp = SudokuProblem(6,default_possible_events)
+
+    solver = SudokuSolver(sp,detailed_verb=True,progress_verb=False)
 
     print("We now define the inflation featuring 6 sources,",
         "and for each i != j, and Alice labeled A(i,j)\nwhose left (right)",
@@ -185,10 +192,9 @@ def example_filling():
     
 def big_infeasible_grid():
 
-    solver = SudokuSolver(
-        order=24, 
-        detailed_verb=False,
-        progress_verb=True)
+    sp = SudokuProblem(24,default_possible_events)
+
+    solver = SudokuSolver(sp,detailed_verb=False,progress_verb=True)
 
     events = [
         (1,2,3),
@@ -200,16 +206,15 @@ def big_infeasible_grid():
         (3,3,3),
         (4,4,4)
     ]
-    for d, (a,b,c) in enumerate(events):
-        solver.set_diag_event(d, a,b,c)
+    solver.set_diag_event_list(events)
 
     solver.complete_grid()
 
 def small_infeasible_grid():
 
-    solver = SudokuSolver(
-        order=18,
-        detailed_verb=False,
+    sp = SudokuProblem(18,default_possible_events)
+
+    solver = SudokuSolver(sp,detailed_verb=False,
         progress_verb=True)
 
     events = [
@@ -220,8 +225,7 @@ def small_infeasible_grid():
         (1,1,1),
         (2,2,2),
     ]
-    for d, (a,b,c) in enumerate(events):
-        solver.set_diag_event(d, a,b,c)
+    solver.set_diag_event_list(events)
 
     solver.complete_grid()
 
